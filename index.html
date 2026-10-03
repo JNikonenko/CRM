@@ -71,6 +71,11 @@
     <label class="field">Заметка
       <textarea id="f-note" rows="3" placeholder="Ссылки, детали, кому написать…"></textarea>
     </label>
+    <div class="field checklist-field">
+      <span>Чек-лист <span id="f-check-count" class="cl-count"></span></span>
+      <ul id="f-checklist" class="checklist"></ul>
+      <input type="text" id="f-check-new" class="cl-new" placeholder="+ добавить пункт" enterkeyhint="enter" aria-label="Новый пункт чек-листа">
+    </div>
     <div class="dlg-actions">
       <button type="button" id="f-delete" class="btn danger">Удалить</button>
       <span class="spacer"></span>

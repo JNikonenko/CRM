@@ -132,6 +132,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .t-proj { color: var(--pc); font-weight: 500; }
 .t-date.overdue { color: var(--margin); font-weight: 500; }
 .t-note-mark { opacity: .7; }
+.t-check { font-variant-numeric: tabular-nums; }
+.t-check.complete { color: #2f9e6b; }
 .drag-ghost { opacity: .35; }
 .chosen { box-shadow: var(--shadow); }
 .sortable-drag { box-shadow: var(--shadow); }
@@ -252,6 +254,20 @@ dialog h3 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-
 .field textarea { resize: vertical; }
 .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .date-wrap { display: flex; gap: 6px; align-items: center; }
+.date-wrap input { flex: 1; min-width: 0; }
+.field-row .field { flex: 1 1 170px; }
+.checklist-field { gap: 6px; }
+.cl-count { margin-left: 6px; font: 11px/1 var(--f-mono); color: var(--accent); }
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cl-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--rule); }
+.cl-handle { cursor: grab; color: var(--ink-soft); opacity: .5; font-size: 12px; letter-spacing: -2px; padding: 4px 2px; touch-action: none; user-select: none; }
+.checklist .cl-done { width: 18px; height: 18px; accent-color: var(--accent); flex: none; margin: 0; }
+.checklist .cl-text { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 15px; padding: 6px 2px; }
+.checklist .cl-text:focus { outline: none; background: var(--hover); border-radius: 4px; }
+.cl-item.done .cl-text { text-decoration: line-through; color: var(--ink-soft); }
+.cl-del { flex: none; border: 0; background: none; color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 4px 6px; cursor: pointer; border-radius: 6px; }
+.cl-del:hover { color: var(--margin); background: var(--hover); }
+.field .cl-new { border-style: dashed; }
 .check-row { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 .dlg-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
