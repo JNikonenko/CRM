@@ -154,14 +154,36 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .page:first-child { border-radius: 12px 4px 4px 12px; }
 .day { padding-top: 10px; }
 .day + .day { margin-top: 6px; }
-.day-head { display: flex; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
+.day-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
 .day-name { font: 600 18px/1.3 var(--f-display); }
+.day-date, .day-count { white-space: nowrap; }
 .day-date { font: 12px/1 var(--f-mono); color: var(--ink-soft); }
 .day-count { margin-left: auto; font: 11px/1 var(--f-mono); color: var(--ink-soft); }
 .day.today .day-head { background: linear-gradient(transparent 55%, var(--today) 55%); }
 .day.today .day-name { color: var(--accent); }
 .day.weekend .day-name { color: var(--margin); }
 .day.past:not(.today) .day-head { opacity: .7; }
+
+.day-link { border: 0; background: none; padding: 0; color: inherit; cursor: pointer; text-align: left; }
+.day-link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- single day ---------- */
+.day-view { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin-inline: auto; }
+.day-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.ds-day {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px 6px;
+  border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); cursor: pointer; min-width: 0;
+}
+.ds-day:hover { background: var(--hover); }
+.ds-name { font: 500 11px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.ds-num { font: 600 18px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.ds-count { font: 11px/1 var(--f-mono); color: var(--accent); min-height: 11px; }
+.ds-day.weekend .ds-name { color: var(--margin); }
+.ds-day.today { background: var(--today); }
+.ds-day.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ds-day.active .ds-name, .ds-day.active .ds-count { color: var(--accent-ink); }
+.day-single .day-name { font-size: 22px; }
+.day-single .tasks { min-height: calc(var(--line) * 3); }
 
 /* ---------- month ---------- */
 .month { background: var(--sheet); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
@@ -239,7 +261,7 @@ dialog h3 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-
   .top { gap: 8px; }
   .brand { font-size: 20px; }
   .tabs { order: 3; width: 100%; }
-  .tabs button { flex: 1; }
+  .tabs button { flex: 1; padding-inline: 4px; }
   #btn-settings { padding-inline: 8px; }
   .filters { margin-left: 0; }
   .period { font-size: 18px; }

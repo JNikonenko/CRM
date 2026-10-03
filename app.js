@@ -147,7 +147,8 @@ function render() {
   $('#show-done-wrap').hidden = ui.view !== 'lists';
   $('#period-nav').hidden = ui.view === 'lists';
 
-  if (ui.view === 'week') renderWeek();
+  if (ui.view === 'day') renderDay();
+  else if (ui.view === 'week') renderWeek();
   else if (ui.view === 'month') renderMonth();
   else renderLists();
   renderNotice();
@@ -180,6 +181,40 @@ function renderNotice() {
   n.hidden = !parts.length;
 }
 
+function renderDay() {
+  const d = parse(ui.anchor);
+  const key = ui.anchor;
+  const today = todayIso();
+  const wd = (d.getDay() + 6) % 7;
+  const rel = key === today ? 'сегодня' : key === iso(addDays(new Date(), 1)) ? 'завтра' : key === iso(addDays(new Date(), -1)) ? 'вчера' : String(d.getFullYear());
+  $('#period-title').innerHTML = `${d.getDate()} ${MONTHS[d.getMonth()]}<small>${rel} · неделя ${isoWeek(d)}</small>`;
+
+  const tasks = visibleTasks();
+  const mon = mondayOf(d);
+  const strip = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+    const x = addDays(mon, i);
+    const k = iso(x);
+    const left = tasks.filter((t) => t.date === k && !t.done).length;
+    const cls = ['ds-day', k === key && 'active', k === today && 'today', i >= 5 && 'weekend'].filter(Boolean).join(' ');
+    return `<button type="button" class="${cls}" data-goto="${k}" data-goto-view="day" aria-pressed="${k === key}">
+      <span class="ds-name">${DAYS_SHORT[i]}</span><span class="ds-num">${x.getDate()}</span><span class="ds-count">${left || ''}</span></button>`;
+  }).join('');
+
+  const list = tasks.filter((t) => t.date === key).sort(byDayOrder);
+  const left = list.filter((t) => !t.done).length;
+  const cls = ['day', 'day-single', key === today && 'today', wd >= 5 && 'weekend'].filter(Boolean).join(' ');
+  view.innerHTML = `<div class="day-view">
+    <div class="day-strip">${strip}</div>
+    <section class="page"><article class="${cls}">
+      <div class="day-head"><span class="day-name">${DAYS[wd]}</span><span class="day-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
+      <span class="day-count">${list.length ? `осталось ${left} из ${list.length}` : ''}</span></div>
+      <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t)).join('')}</ol>
+      ${quickHtml(`data-date="${key}"`, 'записать задачу…')}
+    </article></section>
+  </div>`;
+  view.querySelectorAll('.tasks').forEach((el) => makeSortable(el, 'day'));
+}
+
 function renderWeek() {
   const mon = mondayOf(parse(ui.anchor));
   const sun = addDays(mon, 6);
@@ -195,7 +230,7 @@ function renderWeek() {
     const left = list.filter((t) => !t.done).length;
     const cls = ['day', key === today && 'today', i >= 5 && 'weekend', key < today && 'past'].filter(Boolean).join(' ');
     return `<article class="${cls}">
-      <div class="day-head"><span class="day-name">${DAYS[i]}</span><span class="day-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
+      <div class="day-head"><button type="button" class="day-name day-link" data-goto="${key}" data-goto-view="day" title="Открыть день">${DAYS[i]}</button><span class="day-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
       <span class="day-count">${list.length ? `${left}/${list.length}` : ''}</span></div>
       <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t)).join('')}</ol>
       ${quickHtml(`data-date="${key}"`, 'записать задачу…')}
@@ -226,7 +261,7 @@ function renderMonth() {
     const list = tasks.filter((t) => t.date === key).sort(byDayOrder);
     const cls = ['m-cell', d.getMonth() !== a.getMonth() && 'other', key === today && 'today'].filter(Boolean).join(' ');
     cells += `<div class="${cls}">
-      <button type="button" class="m-num" data-goto="${key}" title="Открыть неделю">${d.getDate()}</button>
+      <button type="button" class="m-num" data-goto="${key}" data-goto-view="day" title="Открыть день">${d.getDate()}</button>
       <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t, { showProject: false })).join('')}</ol>
     </div>`;
   }
@@ -300,7 +335,7 @@ $('#next').addEventListener('click', () => shiftPeriod(1));
 $('#today').addEventListener('click', () => { ui.anchor = todayIso(); saveUi(); render(); });
 function shiftPeriod(dir) {
   const a = parse(ui.anchor);
-  ui.anchor = iso(ui.view === 'month' ? new Date(a.getFullYear(), a.getMonth() + dir, 1) : addDays(a, 7 * dir));
+  ui.anchor = iso(ui.view === 'month' ? new Date(a.getFullYear(), a.getMonth() + dir, 1) : addDays(a, (ui.view === 'day' ? 1 : 7) * dir));
   saveUi(); render();
 }
 
@@ -323,7 +358,7 @@ view.addEventListener('click', (e) => {
     return;
   }
   const go = e.target.closest('[data-goto]');
-  if (go) { ui.anchor = go.dataset.goto; ui.view = 'week'; saveUi(); render(); return; }
+  if (go) { ui.anchor = go.dataset.goto; ui.view = go.dataset.gotoView || 'week'; saveUi(); render(); return; }
   const li = e.target.closest('.task');
   if (li) openEditor(taskById(li.dataset.id));
 });
