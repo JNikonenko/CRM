@@ -28,7 +28,7 @@
     <button type="button" data-view="backlog">Бэклог</button>
   </nav>
   <div class="top-actions">
-    <span id="sync-dot" class="sync-dot" title="Синхронизация выключена"></span>
+    <button type="button" id="sync-dot" class="sync-dot" title="Синхронизация выключена" aria-label="Синхронизировать сейчас"></button>
     <button type="button" id="btn-settings" class="btn ghost">Настройки</button>
     <button type="button" id="btn-new" class="btn primary">+ Задача</button>
   </div>
@@ -102,12 +102,9 @@
       <h3>Синхронизация ноутбук ↔ телефон</h3>
       <p class="hint">Данные хранятся в секретном GitHub Gist вашего аккаунта. Создайте токен на
         <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Dnevnik" target="_blank" rel="noopener">github.com/settings/tokens</a>
-        с галочкой <b>gist</b> и вставьте его сюда на каждом устройстве. На втором устройстве также вставьте ID gist’а, который появится ниже.</p>
+        с галочкой <b>gist</b> и вставьте один и тот же токен на каждом устройстве. Гори сам найдёт общее хранилище.</p>
       <label class="field">Токен GitHub
         <input type="password" id="s-token" autocomplete="off" placeholder="ghp_…">
-      </label>
-      <label class="field">ID gist’а (пусто — создать новый)
-        <input type="text" id="s-gist" autocomplete="off" placeholder="например, 3f2a9c…">
       </label>
       <div class="dlg-actions">
         <button type="button" id="s-sync" class="btn primary small">Подключить и синхронизировать</button>

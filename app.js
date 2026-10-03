@@ -596,7 +596,6 @@ const settings = $('#settings');
 function openSettings() {
   renderProjectSettings();
   $('#s-token').value = sync.token;
-  $('#s-gist').value = sync.gistId;
   setSyncStatus();
   settings.showModal();
 }
@@ -697,12 +696,38 @@ async function gh(path, opts = {}) {
       ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
+    cache: 'no-store', // the browser must not answer with a stale copy of the gist
   });
   if (!res.ok) {
-    const msg = res.status === 401 ? 'токен не подошёл' : res.status === 404 ? 'gist не найден (проверьте ID и права токена)' : `ошибка GitHub ${res.status}`;
+    const msg = res.status === 401 ? 'токен не подошёл' : res.status === 404 ? 'данные не найдены (проверьте права токена: нужна галочка gist)' : `ошибка GitHub ${res.status}`;
     throw new Error(msg);
   }
-  return res.json();
+  return res.status === 204 ? null : res.json();
+}
+
+async function readGist(id) {
+  const g = await gh(`/gists/${id}`);
+  const f = g.files[GIST_FILE];
+  if (!f) return null;
+  return JSON.parse(f.truncated ? await (await fetch(f.raw_url, { cache: 'no-store' })).text() : f.content);
+}
+
+// Every device must use the same gist. Earlier versions created a new gist on each
+// device that connected without an ID, so find all of ours, keep the oldest one and
+// fold the others into it.
+let gistsChecked = false;
+async function pickSharedGist() {
+  const list = await gh('/gists?per_page=100');
+  const ours = list.filter((g) => g.files && g.files[GIST_FILE])
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (!ours.length) return [];
+  if (sync.gistId !== ours[0].id) { sync.gistId = ours[0].id; storage.set(SYNC_KEY, sync); }
+  const extras = ours.slice(1).map((g) => g.id);
+  for (const id of extras) {
+    const data = await readGist(id);
+    if (data) state = merge(state, data);
+  }
+  return extras;
 }
 
 let syncTimer = null;
@@ -721,13 +746,10 @@ async function syncNow() {
   if (syncing) { syncAgain = true; return; }
   syncing = true; syncError = ''; setSyncStatus();
   try {
-    let remote = null;
-    if (sync.gistId) {
-      const g = await gh(`/gists/${sync.gistId}`);
-      const f = g.files[GIST_FILE];
-      if (f) remote = JSON.parse(f.truncated ? await (await fetch(f.raw_url)).text() : f.content);
-    }
     const before = JSON.stringify(state);
+    let extras = [];
+    if (!gistsChecked) { extras = await pickSharedGist(); gistsChecked = true; }
+    const remote = sync.gistId ? await readGist(sync.gistId) : null;
     if (remote) state = merge(state, remote);
     storage.set(STORE_KEY, state);
     if (JSON.stringify(state) !== before && !document.querySelector('dialog[open]') && !view.contains(document.activeElement)) render();
@@ -738,8 +760,9 @@ async function syncNow() {
     } else {
       const g = await gh('/gists', { method: 'POST', body: { description: 'Гори: данные планера', public: false, ...body } });
       sync.gistId = g.id;
-      $('#s-gist').value = g.id;
     }
+    // duplicates are merged into the shared gist above, so they can go
+    for (const id of extras) await gh(`/gists/${id}`, { method: 'DELETE' }).catch(() => {});
     sync.lastSync = now();
     storage.set(SYNC_KEY, sync);
   } catch (err) {
@@ -762,7 +785,7 @@ function setSyncStatus() {
   else {
     dot.classList.add('ok');
     const t = sync.lastSync ? new Date(sync.lastSync) : null;
-    text = t ? `Синхронизировано в ${pad(t.getHours())}:${pad(t.getMinutes())}. ID gist’а: ${sync.gistId}` : 'Подключено.';
+    text = t ? `Синхронизировано в ${pad(t.getHours())}:${pad(t.getMinutes())}. Хранилище: ${sync.gistId.slice(0, 7)}` : 'Подключено.';
   }
   dot.title = text;
   status.textContent = text;
@@ -770,8 +793,8 @@ function setSyncStatus() {
 
 $('#s-sync').addEventListener('click', () => {
   sync.token = $('#s-token').value.trim();
-  sync.gistId = $('#s-gist').value.trim();
   storage.set(SYNC_KEY, sync);
+  gistsChecked = false;
   syncNow();
 });
 $('#s-unsync').addEventListener('click', () => {
@@ -780,6 +803,8 @@ $('#s-unsync').addEventListener('click', () => {
   $('#s-token').value = '';
   setSyncStatus();
 });
+
+$('#sync-dot').addEventListener('click', () => { if (sync.token) { gistsChecked = false; syncNow(); } else openSettings(); });
 
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
 setInterval(() => { if (document.visibilityState === 'visible') syncNow(); }, 120000);
