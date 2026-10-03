@@ -298,14 +298,38 @@ function renderLists() {
     const all = tasks.filter((t) => t.projectId === p.id).sort(byProjOrder);
     const list = withoutDone(all);
     const left = all.filter((t) => !t.done).length;
-    return `<section class="col" style="--pc:${esc(p.color)}">
-      <div class="col-head"><span class="col-name">${esc(p.name)}</span><span class="col-count">${left} в списке</span></div>
+    return `<section class="col" data-col="${p.id}" style="--pc:${esc(p.color)}">
+      <div class="col-head" title="Перетащите, чтобы поменять порядок проектов"><span class="col-grip" aria-hidden="true">⋮⋮</span><span class="col-name">${esc(p.name)}</span><span class="col-count">${left} в списке</span></div>
       <ol class="tasks" data-project="${p.id}">${list.map((t, i) => taskHtml(t, { showProject: false, showDate: true, rank: i + 1 })).join('')}</ol>
       ${quickHtml(`data-project="${p.id}"`, 'добавить в конец списка…', false)}
     </section>`;
   });
   view.innerHTML = cols.length ? `<div class="lists">${cols.join('')}</div>` : '<p class="empty">Все проекты скрыты фильтром сверху.</p>';
   view.querySelectorAll('.tasks').forEach((el) => makeSortable(el, 'project'));
+  const board = view.querySelector('.lists');
+  if (board && window.Sortable) {
+    sortables.push(new Sortable(board, {
+      handle: '.col-head',
+      draggable: '.col',
+      animation: 150,
+      delay: 200,
+      delayOnTouchOnly: true,
+      ghostClass: 'drag-ghost',
+      onEnd: () => reorderProjects([...board.children].map((c) => c.dataset.col)),
+    }));
+  }
+}
+
+// visibleIds is the new order of the shown columns; hidden projects keep their slots
+function reorderProjects(visibleIds) {
+  const queue = [...visibleIds];
+  const next = projects().map((p) => (visibleIds.includes(p.id) ? queue.shift() : p.id));
+  next.forEach((id, i) => {
+    const p = projectById(id);
+    if (p.order !== i) { p.order = i; touch(p); }
+  });
+  save();
+  render();
 }
 
 function renderBacklog() {

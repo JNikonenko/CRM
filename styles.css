@@ -222,7 +222,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- lists by project ---------- */
 .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; align-items: start; }
 .col { background: var(--sheet); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px 16px; border-top: 5px solid var(--pc); min-width: 0; }
-.col-head { display: flex; align-items: baseline; gap: 8px; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
+.col-head { display: flex; align-items: baseline; gap: 8px; border-bottom: 2px solid var(--ink); padding-bottom: 2px; cursor: grab; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.col-grip { color: var(--ink-soft); opacity: .45; font-size: 12px; letter-spacing: -2px; }
+.col-head:hover .col-grip { opacity: 1; }
 .col-name { font: 600 18px/1.3 var(--f-display); color: var(--pc); }
 .col-count { margin-left: auto; font: 11px/1 var(--f-mono); color: var(--ink-soft); }
 .col .task { padding-left: 0; }
