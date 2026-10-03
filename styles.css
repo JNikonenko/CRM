@@ -192,6 +192,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .day-single .tasks { min-height: calc(var(--line) * 3); }
 
 /* ---------- month ---------- */
+.month-hint { margin: 0 0 8px; }
+.m-cell { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .month { background: var(--sheet); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
 .m-head, .m-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .m-head div { padding: 8px; font: 11px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); border-bottom: 2px solid var(--ink); }

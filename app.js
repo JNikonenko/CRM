@@ -130,6 +130,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const view = $('#view');
 let sortables = [];
 let pendingFocus = null;
+let lastCellTap = { key: null, at: 0 };
 
 function taskHtml(t, { showProject = true, showDate = false, rank = null } = {}) {
   const p = projectById(t.projectId);
@@ -275,12 +276,12 @@ function renderMonth() {
     const key = iso(d);
     const list = tasks.filter((t) => t.date === key).sort(byDayOrder);
     const cls = ['m-cell', d.getMonth() !== a.getMonth() && 'other', key === today && 'today'].filter(Boolean).join(' ');
-    cells += `<div class="${cls}">
+    cells += `<div class="${cls}" data-cell="${key}">
       <button type="button" class="m-num" data-goto="${key}" data-goto-view="day" title="Открыть день">${d.getDate()}</button>
       <ol class="tasks" data-date="${key}">${withoutDone(list).map((t) => taskHtml(t, { showProject: false })).join('')}</ol>
     </div>`;
   }
-  view.innerHTML = `<div class="month">
+  view.innerHTML = `<p class="hint month-hint">Двойное нажатие по дню добавляет задачу.</p><div class="month">
     <div class="m-head">${DAYS_SHORT.map((d) => `<div>${d}</div>`).join('')}</div>
     <div class="m-grid">${cells}</div>
   </div>`;
@@ -388,7 +389,20 @@ view.addEventListener('click', (e) => {
   const go = e.target.closest('[data-goto]');
   if (go) { ui.anchor = go.dataset.goto; ui.view = go.dataset.gotoView || 'week'; saveUi(); render(); return; }
   const li = e.target.closest('.task');
-  if (li) openEditor(taskById(li.dataset.id));
+  if (li) { openEditor(taskById(li.dataset.id)); return; }
+  // month: double click / double tap on an empty part of a day cell adds a task.
+  // Tracked by hand because phones don't fire dblclick reliably.
+  const cell = e.target.closest('[data-cell]');
+  if (cell) {
+    const t = now();
+    if (lastCellTap.key === cell.dataset.cell && t - lastCellTap.at < 400) {
+      lastCellTap = { key: null, at: 0 };
+      if (!projects().length) { openSettings(); return; }
+      openEditor(null, cell.dataset.cell);
+    } else {
+      lastCellTap = { key: cell.dataset.cell, at: t };
+    }
+  }
 });
 
 // picking a project in one add field makes it the default for all of them
@@ -436,13 +450,13 @@ $('#notice').addEventListener('click', (e) => {
 const editor = $('#editor');
 let editing = null;
 
-function openEditor(task) {
+function openEditor(task, presetDate) {
   editing = task || null;
   $('#editor-heading').textContent = task ? 'Задача' : 'Новая задача';
   $('#f-project').innerHTML = projects().map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   $('#f-title').value = task ? task.title : '';
   $('#f-project').value = task ? task.projectId : (ui.defaultProject || '');
-  $('#f-date').value = task ? (task.date || '') : (ui.view === 'lists' || ui.view === 'backlog' ? '' : ui.view === 'day' ? ui.anchor : todayIso());
+  $('#f-date').value = task ? (task.date || '') : presetDate || (ui.view === 'lists' || ui.view === 'backlog' ? '' : ui.view === 'day' ? ui.anchor : todayIso());
   $('#f-important').checked = task ? !!task.important : false;
   $('#f-note').value = task ? task.note || '' : '';
   const del = $('#f-delete');
