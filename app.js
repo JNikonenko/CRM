@@ -110,9 +110,9 @@ function nextOrder(field, filter) {
   return values.length ? Math.max(...values) + 1 : 0;
 }
 
-function addTask({ title, projectId, date = null, important = false, note = '' }) {
+function addTask({ title, projectId, date = null, important = false, note = '', checklist = [] }) {
   const t = {
-    id: uid(), title: title.trim(), note, projectId, date, done: false, important,
+    id: uid(), title: title.trim(), note, checklist, projectId, date, done: false, important,
     dayOrder: nextOrder('dayOrder', (x) => x.date === date),
     projOrder: nextOrder('projOrder', (x) => x.projectId === projectId),
     backOrder: nextOrder('backOrder', (x) => !x.date),
@@ -139,6 +139,10 @@ function taskHtml(t, { showProject = true, showDate = false, rank = null } = {})
   if (showProject) meta.push(`<span class="t-proj">${esc(p.name)}</span>`);
   if (showDate) meta.push(t.date ? `<span class="t-date${overdue ? ' overdue' : ''}">${shortDate(t.date)}</span>` : '<span class="t-date">без даты</span>');
   if (t.note) meta.push('<span class="t-note-mark">✎ заметка</span>');
+  if (t.checklist && t.checklist.length) {
+    const done = t.checklist.filter((c) => c.done).length;
+    meta.push(`<span class="t-check${done === t.checklist.length ? ' complete' : ''}">☑ ${done}/${t.checklist.length}</span>`);
+  }
   return `<li class="task${t.done ? ' done' : ''}${t.important ? ' important' : ''}" data-id="${t.id}" style="--pc:${esc(p.color)}">
     ${rank !== null ? `<span class="rank">${rank}</span>` : ''}
     <button type="button" class="check" aria-label="${t.done ? 'Вернуть в работу' : 'Отметить выполненной'}"></button>
@@ -450,6 +454,76 @@ $('#notice').addEventListener('click', (e) => {
 const editor = $('#editor');
 let editing = null;
 
+/* checklist inside the editor: edited on a copy, saved with the task */
+let draftChecklist = [];
+const checklistEl = $('#f-checklist');
+
+function renderChecklist() {
+  checklistEl.innerHTML = draftChecklist.map((c) => `<li class="cl-item${c.done ? ' done' : ''}" data-id="${c.id}">
+    <span class="cl-handle" aria-hidden="true" title="Перетащить">⋮⋮</span>
+    <input type="checkbox" class="cl-done"${c.done ? ' checked' : ''} aria-label="Пункт выполнен">
+    <input type="text" class="cl-text" value="${esc(c.text)}" aria-label="Пункт чек-листа">
+    <button type="button" class="cl-del" aria-label="Удалить пункт">×</button>
+  </li>`).join('');
+  updateChecklistCount();
+}
+function updateChecklistCount() {
+  const done = draftChecklist.filter((c) => c.done).length;
+  $('#f-check-count').textContent = draftChecklist.length ? `${done} из ${draftChecklist.length}` : '';
+}
+const draftItem = (el) => draftChecklist.find((c) => c.id === el.closest('.cl-item').dataset.id);
+
+checklistEl.addEventListener('change', (e) => {
+  if (!e.target.matches('.cl-done')) return;
+  const c = draftItem(e.target);
+  c.done = e.target.checked;
+  e.target.closest('.cl-item').classList.toggle('done', c.done);
+  updateChecklistCount();
+});
+checklistEl.addEventListener('input', (e) => {
+  if (e.target.matches('.cl-text')) draftItem(e.target).text = e.target.value;
+});
+checklistEl.addEventListener('click', (e) => {
+  if (!e.target.matches('.cl-del')) return;
+  const c = draftItem(e.target);
+  draftChecklist = draftChecklist.filter((x) => x !== c);
+  renderChecklist();
+});
+checklistEl.addEventListener('keydown', (e) => {
+  if (!e.target.matches('.cl-text')) return;
+  if (e.key === 'Enter') { e.preventDefault(); $('#f-check-new').focus(); }
+  if (e.key === 'Backspace' && !e.target.value) {
+    e.preventDefault();
+    const c = draftItem(e.target);
+    draftChecklist = draftChecklist.filter((x) => x !== c);
+    renderChecklist();
+    $('#f-check-new').focus();
+  }
+});
+$('#f-check-new').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  addDraftItem();
+});
+function addDraftItem() {
+  const input = $('#f-check-new');
+  const text = input.value.trim();
+  if (!text) return;
+  draftChecklist.push({ id: uid(), text, done: false });
+  input.value = '';
+  renderChecklist();
+}
+if (window.Sortable) {
+  new Sortable(checklistEl, {
+    handle: '.cl-handle',
+    animation: 150,
+    onEnd: () => {
+      const order = [...checklistEl.children].map((li) => li.dataset.id);
+      draftChecklist.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    },
+  });
+}
+
 function openEditor(task, presetDate) {
   editing = task || null;
   $('#editor-heading').textContent = task ? 'Задача' : 'Новая задача';
@@ -459,6 +533,9 @@ function openEditor(task, presetDate) {
   $('#f-date').value = task ? (task.date || '') : presetDate || (ui.view === 'lists' || ui.view === 'backlog' ? '' : ui.view === 'day' ? ui.anchor : todayIso());
   $('#f-important').checked = task ? !!task.important : false;
   $('#f-note').value = task ? task.note || '' : '';
+  draftChecklist = task && task.checklist ? task.checklist.map((c) => ({ ...c })) : [];
+  $('#f-check-new').value = '';
+  renderChecklist();
   const del = $('#f-delete');
   del.hidden = !task; del.classList.remove('armed'); del.textContent = 'Удалить';
   editor.showModal();
@@ -479,12 +556,14 @@ $('#editor-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('#f-title').value.trim();
   if (!title) return;
+  addDraftItem(); // a typed but not yet added item is kept too
   const data = {
     title,
     projectId: $('#f-project').value,
     date: $('#f-date').value || null,
     important: $('#f-important').checked,
     note: $('#f-note').value.trim(),
+    checklist: draftChecklist.map((c) => ({ ...c, text: c.text.trim() })).filter((c) => c.text),
   };
   if (editing) {
     if (editing.date && !data.date) editing.backOrder = nextOrder('backOrder', (x) => !x.date && x !== editing);
