@@ -589,7 +589,7 @@ $('#s-import').addEventListener('change', async (e) => {
     state = merge(state, data);
     save(); renderProjectSettings(); toast('Копия загружена и объединена с текущими данными');
   } catch {
-    toast('Не получилось прочитать файл: нужен JSON, скачанный из этого дневника');
+    toast('Не получилось прочитать файл: нужен JSON, скачанный из Гори');
   }
   e.target.value = '';
 });
@@ -657,7 +657,7 @@ async function syncNow() {
     if (sync.gistId) {
       if (!remote || signature(remote) !== signature(state)) await gh(`/gists/${sync.gistId}`, { method: 'PATCH', body });
     } else {
-      const g = await gh('/gists', { method: 'POST', body: { description: 'Дневник: данные планера', public: false, ...body } });
+      const g = await gh('/gists', { method: 'POST', body: { description: 'Гори: данные планера', public: false, ...body } });
       sync.gistId = g.id;
       $('#s-gist').value = g.id;
     }
