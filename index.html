@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Гори</title>
+<meta name="theme-color" content="#f3f5fa">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- APP:HEAD -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+<!-- /APP:HEAD -->
+</head>
+<body>
+<!-- APP:BODY -->
+<header class="top">
+  <div class="brand">Гори</div>
+  <nav class="tabs" aria-label="Вид">
+    <button type="button" data-view="day">День</button>
+    <button type="button" data-view="week">Неделя</button>
+    <button type="button" data-view="month">Месяц</button>
+    <button type="button" data-view="lists">Проекты</button>
+    <button type="button" data-view="backlog">Бэклог</button>
+  </nav>
+  <div class="top-actions">
+    <span id="sync-dot" class="sync-dot" title="Синхронизация выключена"></span>
+    <button type="button" id="btn-settings" class="btn ghost">Настройки</button>
+    <button type="button" id="btn-new" class="btn primary">+ Задача</button>
+  </div>
+</header>
+
+<div class="bar">
+  <div class="period-nav" id="period-nav">
+    <button type="button" id="prev" class="btn icon" aria-label="Назад">‹</button>
+    <div id="period-title" class="period"></div>
+    <button type="button" id="next" class="btn icon" aria-label="Вперёд">›</button>
+    <button type="button" id="today" class="btn ghost small">Сегодня</button>
+  </div>
+  <div class="filters">
+    <div id="chips" class="chips" aria-label="Показывать проекты"></div>
+    <label class="show-done" id="show-done-wrap"><input type="checkbox" id="show-done"> выполненные</label>
+  </div>
+</div>
+
+<div id="notice" class="notice" hidden></div>
+<main id="view"></main>
+
+<dialog id="editor">
+  <form id="editor-form">
+    <h2 id="editor-heading">Задача</h2>
+    <label class="field">Что сделать
+      <textarea id="f-title" rows="2" required></textarea>
+    </label>
+    <div class="field-row">
+      <label class="field">Проект
+        <select id="f-project"></select>
+      </label>
+      <label class="field">Дата
+        <span class="date-wrap">
+          <input type="date" id="f-date">
+          <button type="button" id="f-nodate" class="btn ghost small">без даты</button>
+        </span>
+      </label>
+    </div>
+    <label class="check-row"><input type="checkbox" id="f-important"> Важная дата: выделить в календаре</label>
+    <label class="field">Заметка
+      <textarea id="f-note" rows="3" placeholder="Ссылки, детали, кому написать…"></textarea>
+    </label>
+    <div class="dlg-actions">
+      <button type="button" id="f-delete" class="btn danger">Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" id="f-cancel" class="btn ghost">Отмена</button>
+      <button type="submit" class="btn primary">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settings">
+  <div class="settings-body">
+    <div class="dlg-head">
+      <h2>Настройки</h2>
+      <button type="button" id="s-close" class="btn ghost small">Закрыть</button>
+    </div>
+
+    <section>
+      <h3>Проекты</h3>
+      <div id="s-projects" class="s-projects"></div>
+      <button type="button" id="s-add-project" class="btn ghost small">+ Проект</button>
+    </section>
+
+    <section>
+      <h3>Синхронизация ноутбук ↔ телефон</h3>
+      <p class="hint">Данные хранятся в секретном GitHub Gist вашего аккаунта. Создайте токен на
+        <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Dnevnik" target="_blank" rel="noopener">github.com/settings/tokens</a>
+        с галочкой <b>gist</b> и вставьте его сюда на каждом устройстве. На втором устройстве также вставьте ID gist’а, который появится ниже.</p>
+      <label class="field">Токен GitHub
+        <input type="password" id="s-token" autocomplete="off" placeholder="ghp_…">
+      </label>
+      <label class="field">ID gist’а (пусто — создать новый)
+        <input type="text" id="s-gist" autocomplete="off" placeholder="например, 3f2a9c…">
+      </label>
+      <div class="dlg-actions">
+        <button type="button" id="s-sync" class="btn primary small">Подключить и синхронизировать</button>
+        <button type="button" id="s-unsync" class="btn ghost small">Отключить</button>
+      </div>
+      <p id="s-sync-status" class="hint"></p>
+    </section>
+
+    <section>
+      <h3>Резервная копия</h3>
+      <div class="dlg-actions">
+        <button type="button" id="s-export" class="btn ghost small">Скачать JSON</button>
+        <label class="btn ghost small file-btn">Загрузить JSON<input type="file" id="s-import" accept="application/json,.json"></label>
+      </div>
+    </section>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<!-- /APP:BODY -->
+<script src="vendor/Sortable.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
