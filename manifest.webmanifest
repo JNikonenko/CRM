@@ -1,0 +1,14 @@
+{
+  "name": "Дневник",
+  "short_name": "Дневник",
+  "description": "Личный планер: неделя как в школьном дневнике, месяц и списки по проектам.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f7",
+  "theme_color": "#eef1f7",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
