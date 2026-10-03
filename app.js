@@ -145,9 +145,14 @@ function taskHtml(t, { showProject = true, showDate = false, rank = null } = {})
   </li>`;
 }
 
-function quickHtml(attrs, placeholder) {
-  return `<form class="quick" ${attrs}><input type="text" data-quick="${esc(attrs)}" placeholder="${placeholder}" enterkeyhint="done" aria-label="${placeholder}"></form>`;
+function quickHtml(attrs, placeholder, withProject = true) {
+  const select = withProject
+    ? `<select class="quick-project" aria-label="Проект">${projects().map((p) => `<option value="${p.id}"${p.id === ui.defaultProject ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`
+    : '';
+  return `<form class="quick${withProject ? ' with-project' : ''}" ${attrs}><input type="text" data-quick="${esc(attrs)}" placeholder="${placeholder}" enterkeyhint="done" aria-label="${placeholder}">${select}</form>`;
 }
+
+const withoutDone = (list) => (ui.showDone ? list : list.filter((t) => !t.done));
 
 function render() {
   for (const s of sortables) s.destroy();
@@ -155,10 +160,7 @@ function render() {
 
   document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === ui.view)));
   renderChips();
-  const listLike = ui.view === 'lists' || ui.view === 'backlog';
-  $('#show-done-wrap').hidden = !listLike;
-  $('#period-nav').hidden = listLike;
-  $('.default-proj').hidden = listLike; // these views pick the project in their own add field
+  $('#period-nav').hidden = ui.view === 'lists' || ui.view === 'backlog';
 
   if (ui.view === 'day') renderDay();
   else if (ui.view === 'week') renderWeek();
@@ -179,7 +181,6 @@ function renderChips() {
   $('#chips').innerHTML = ps.map((p) =>
     `<button type="button" class="chip" data-project="${p.id}" style="--pc:${esc(p.color)}" aria-pressed="${!ui.hidden.includes(p.id)}">${esc(p.name)}</button>`).join('');
   if (!ps.some((p) => p.id === ui.defaultProject)) ui.defaultProject = ps[0] ? ps[0].id : null;
-  $('#default-project').innerHTML = ps.map((p) => `<option value="${p.id}"${p.id === ui.defaultProject ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#show-done').checked = ui.showDone;
 }
 
@@ -222,7 +223,7 @@ function renderDay() {
     <section class="page"><article class="${cls}">
       <div class="day-head"><span class="day-name">${DAYS[wd]}</span><span class="day-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
       <span class="day-count">${list.length ? `осталось ${left} из ${list.length}` : ''}</span></div>
-      <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t)).join('')}</ol>
+      <ol class="tasks" data-date="${key}">${withoutDone(list).map((t) => taskHtml(t)).join('')}</ol>
       ${quickHtml(`data-date="${key}"`, 'записать задачу…')}
     </article></section>
   </div>`;
@@ -246,7 +247,7 @@ function renderWeek() {
     return `<article class="${cls}">
       <div class="day-head"><button type="button" class="day-name day-link" data-goto="${key}" data-goto-view="day" title="Открыть день">${DAYS[i]}</button><span class="day-date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
       <span class="day-count">${list.length ? `${left}/${list.length}` : ''}</span></div>
-      <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t)).join('')}</ol>
+      <ol class="tasks" data-date="${key}">${withoutDone(list).map((t) => taskHtml(t)).join('')}</ol>
       ${quickHtml(`data-date="${key}"`, 'записать задачу…')}
     </article>`;
   };
@@ -276,7 +277,7 @@ function renderMonth() {
     const cls = ['m-cell', d.getMonth() !== a.getMonth() && 'other', key === today && 'today'].filter(Boolean).join(' ');
     cells += `<div class="${cls}">
       <button type="button" class="m-num" data-goto="${key}" data-goto-view="day" title="Открыть день">${d.getDate()}</button>
-      <ol class="tasks" data-date="${key}">${list.map((t) => taskHtml(t, { showProject: false })).join('')}</ol>
+      <ol class="tasks" data-date="${key}">${withoutDone(list).map((t) => taskHtml(t, { showProject: false })).join('')}</ol>
     </div>`;
   }
   view.innerHTML = `<div class="month">
@@ -290,12 +291,12 @@ function renderLists() {
   const tasks = visibleTasks();
   const cols = projects().filter((p) => !ui.hidden.includes(p.id)).map((p) => {
     const all = tasks.filter((t) => t.projectId === p.id).sort(byProjOrder);
-    const list = ui.showDone ? all : all.filter((t) => !t.done);
+    const list = withoutDone(all);
     const left = all.filter((t) => !t.done).length;
     return `<section class="col" style="--pc:${esc(p.color)}">
       <div class="col-head"><span class="col-name">${esc(p.name)}</span><span class="col-count">${left} в списке</span></div>
       <ol class="tasks" data-project="${p.id}">${list.map((t, i) => taskHtml(t, { showProject: false, showDate: true, rank: i + 1 })).join('')}</ol>
-      ${quickHtml(`data-project="${p.id}"`, 'добавить в конец списка…')}
+      ${quickHtml(`data-project="${p.id}"`, 'добавить в конец списка…', false)}
     </section>`;
   });
   view.innerHTML = cols.length ? `<div class="lists">${cols.join('')}</div>` : '<p class="empty">Все проекты скрыты фильтром сверху.</p>';
@@ -304,18 +305,14 @@ function renderLists() {
 
 function renderBacklog() {
   const all = visibleTasks().filter((t) => !t.date).sort(byBackOrder);
-  const list = ui.showDone ? all : all.filter((t) => !t.done);
+  const list = withoutDone(all);
   const left = all.filter((t) => !t.done).length;
-  const options = projects().map((p) => `<option value="${p.id}"${p.id === ui.defaultProject ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   view.innerHTML = `<div class="backlog-view"><section class="page">
     <div class="day-head"><span class="day-name">Бэклог</span><span class="day-date">задачи без даты</span>
       <span class="day-count">${left} в списке</span></div>
     <p class="hint backlog-hint">Здесь задачи ждут своего дня. Чтобы запланировать, откройте задачу и поставьте дату.</p>
     <ol class="tasks" data-backlog="1">${list.map((t, i) => taskHtml(t, { rank: i + 1 })).join('')}</ol>
-    <form class="quick quick-backlog" data-backlog="1">
-      <input type="text" data-quick="backlog" placeholder="добавить в бэклог…" enterkeyhint="done" aria-label="Добавить в бэклог">
-      <select id="backlog-project" aria-label="Проект">${options}</select>
-    </form>
+    ${quickHtml('data-backlog="1"', 'добавить в бэклог…')}
   </section></div>`;
   view.querySelectorAll('.tasks').forEach((el) => makeSortable(el, 'backlog'));
 }
@@ -378,7 +375,6 @@ $('#chips').addEventListener('click', (e) => {
   ui.hidden = ui.hidden.includes(id) ? ui.hidden.filter((x) => x !== id) : [...ui.hidden, id];
   saveUi(); render();
 });
-$('#default-project').addEventListener('change', (e) => { ui.defaultProject = e.target.value; saveUi(); });
 $('#show-done').addEventListener('change', (e) => { ui.showDone = e.target.checked; saveUi(); render(); });
 
 view.addEventListener('click', (e) => {
@@ -395,6 +391,13 @@ view.addEventListener('click', (e) => {
   if (li) openEditor(taskById(li.dataset.id));
 });
 
+// picking a project in one add field makes it the default for all of them
+view.addEventListener('change', (e) => {
+  if (!e.target.matches('.quick-project')) return;
+  ui.defaultProject = e.target.value; saveUi();
+  view.querySelectorAll('.quick-project').forEach((sel) => { sel.value = ui.defaultProject; });
+});
+
 view.addEventListener('submit', (e) => {
   const form = e.target.closest('.quick');
   if (!form) return;
@@ -403,15 +406,11 @@ view.addEventListener('submit', (e) => {
   const title = input.value.trim();
   if (!title) return;
   if (form.dataset.project) addTask({ title, projectId: form.dataset.project });
-  else if (form.dataset.backlog) {
-    const projectId = form.querySelector('select').value;
+  else {
+    const projectId = form.querySelector('.quick-project').value;
     if (!projectId) { toast('Сначала создайте проект в настройках'); return; }
     ui.defaultProject = projectId; saveUi();
-    addTask({ title, projectId, date: null });
-  }
-  else {
-    if (!ui.defaultProject) { toast('Сначала создайте проект в настройках'); return; }
-    addTask({ title, projectId: ui.defaultProject, date: form.dataset.date });
+    addTask({ title, projectId, date: form.dataset.date || null });
   }
   pendingFocus = input.dataset.quick;
   render();

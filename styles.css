@@ -98,8 +98,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .chip::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--pc); }
 .chip[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
-.default-proj, .show-done { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
-.default-proj select { border: 1px solid var(--rule); background: var(--sheet); border-radius: 6px; padding: 3px 6px; }
+.show-done { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
 
 .notice {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px;
@@ -144,6 +143,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .quick input::placeholder { color: var(--ink-soft); opacity: .6; }
 .quick input:focus { outline: none; border-bottom-color: var(--accent); }
+.quick.with-project { gap: 8px; align-items: center; border-bottom: 1px solid var(--rule); }
+.quick.with-project:focus-within { border-bottom-color: var(--accent); }
+.quick.with-project input { border-bottom: 0; min-width: 0; }
+.quick-project {
+  flex: none; max-width: 45%; border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
+  border-radius: 6px; padding: 3px 6px; font-size: 13px;
+}
 
 /* ---------- week: diary spread ---------- */
 .spread { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
@@ -219,10 +225,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .backlog-view { max-width: 760px; margin-inline: auto; }
 .backlog-hint { padding: 6px 0 4px; }
 .backlog-view .task { padding-left: 0; }
+.backlog-view .quick input { padding-left: 28px; }
 .backlog-view .rank { flex: none; width: 20px; font: 11px/22px var(--f-mono); color: var(--ink-soft); text-align: right; }
-.quick-backlog { gap: 8px; align-items: center; border-bottom: 1px solid var(--rule); }
-.quick-backlog input { border-bottom: 0; padding-left: 28px; }
-.quick-backlog select { flex: none; max-width: 45%; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
 
 /* ---------- dialogs ---------- */
 dialog {
