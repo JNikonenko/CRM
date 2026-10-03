@@ -72,6 +72,14 @@ let state = storage.get(STORE_KEY, null) || exampleState();
 let ui = Object.assign({ view: 'week', anchor: todayIso(), hidden: [], defaultProject: null, showDone: false }, storage.get(UI_KEY, {}));
 let sync = Object.assign({ token: '', gistId: '', lastSync: 0 }, storage.get(SYNC_KEY, {}));
 
+// tasks created before the backlog existed get a backlog position after the ordered ones
+(function migrateBacklog() {
+  const undated = state.tasks.filter((t) => !t.date && !t.deleted);
+  let next = Math.max(-1, ...undated.map((t) => t.backOrder).filter(Number.isFinite)) + 1;
+  undated.filter((t) => !Number.isFinite(t.backOrder)).sort((a, b) => a.createdAt - b.createdAt)
+    .forEach((t) => { t.backOrder = next++; });
+})();
+
 // drop tombstones older than 30 days
 (function purge() {
   const cutoff = now() - 30 * 86400000;
@@ -86,6 +94,7 @@ const liveTasks = () => state.tasks.filter((t) => !t.deleted && projectById(t.pr
 const visibleTasks = () => liveTasks().filter((t) => !ui.hidden.includes(t.projectId));
 const byDayOrder = (a, b) => (a.dayOrder - b.dayOrder) || (a.createdAt - b.createdAt);
 const byProjOrder = (a, b) => (a.projOrder - b.projOrder) || (a.createdAt - b.createdAt);
+const byBackOrder = (a, b) => ((a.backOrder ?? Infinity) - (b.backOrder ?? Infinity)) || (a.createdAt - b.createdAt);
 
 function save() {
   storage.set(STORE_KEY, state);
@@ -97,7 +106,8 @@ function touch(obj) { obj.updatedAt = now(); }
 
 function nextOrder(field, filter) {
   const list = liveTasks().filter(filter);
-  return list.length ? Math.max(...list.map((t) => t[field])) + 1 : 0;
+  const values = list.map((t) => t[field]).filter(Number.isFinite);
+  return values.length ? Math.max(...values) + 1 : 0;
 }
 
 function addTask({ title, projectId, date = null, important = false, note = '' }) {
@@ -105,6 +115,7 @@ function addTask({ title, projectId, date = null, important = false, note = '' }
     id: uid(), title: title.trim(), note, projectId, date, done: false, important,
     dayOrder: nextOrder('dayOrder', (x) => x.date === date),
     projOrder: nextOrder('projOrder', (x) => x.projectId === projectId),
+    backOrder: nextOrder('backOrder', (x) => !x.date),
     createdAt: now(), updatedAt: now(),
   };
   state.tasks.push(t);
@@ -144,12 +155,15 @@ function render() {
 
   document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === ui.view)));
   renderChips();
-  $('#show-done-wrap').hidden = ui.view !== 'lists';
-  $('#period-nav').hidden = ui.view === 'lists';
+  const listLike = ui.view === 'lists' || ui.view === 'backlog';
+  $('#show-done-wrap').hidden = !listLike;
+  $('#period-nav').hidden = listLike;
+  $('.default-proj').hidden = listLike; // these views pick the project in their own add field
 
   if (ui.view === 'day') renderDay();
   else if (ui.view === 'week') renderWeek();
   else if (ui.view === 'month') renderMonth();
+  else if (ui.view === 'backlog') renderBacklog();
   else renderLists();
   renderNotice();
 
@@ -176,7 +190,7 @@ function renderNotice() {
   const examples = state.tasks.filter((t) => t.example && !t.deleted);
   const parts = [];
   if (examples.length) parts.push(`<span>Это примеры задач, чтобы было видно, как всё устроено.</span><button type="button" class="btn small" data-act="clear-examples">Удалить примеры</button>`);
-  if (overdue.length && ui.view !== 'lists') parts.push(`<span>Хвосты с прошлых дней: <b>${overdue.length}</b>.</span><button type="button" class="btn small" data-act="overdue-today">Перенести на сегодня</button>`);
+  if (overdue.length && ui.view !== 'lists' && ui.view !== 'backlog') parts.push(`<span>Хвосты с прошлых дней: <b>${overdue.length}</b>.</span><button type="button" class="btn small" data-act="overdue-today">Перенести на сегодня</button>`);
   n.innerHTML = parts.join('<span class="spacer"></span>');
   n.hidden = !parts.length;
 }
@@ -288,6 +302,24 @@ function renderLists() {
   view.querySelectorAll('.tasks').forEach((el) => makeSortable(el, 'project'));
 }
 
+function renderBacklog() {
+  const all = visibleTasks().filter((t) => !t.date).sort(byBackOrder);
+  const list = ui.showDone ? all : all.filter((t) => !t.done);
+  const left = all.filter((t) => !t.done).length;
+  const options = projects().map((p) => `<option value="${p.id}"${p.id === ui.defaultProject ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+  view.innerHTML = `<div class="backlog-view"><section class="page">
+    <div class="day-head"><span class="day-name">Бэклог</span><span class="day-date">задачи без даты</span>
+      <span class="day-count">${left} в списке</span></div>
+    <p class="hint backlog-hint">Здесь задачи ждут своего дня. Чтобы запланировать, откройте задачу и поставьте дату.</p>
+    <ol class="tasks" data-backlog="1">${list.map((t, i) => taskHtml(t, { rank: i + 1 })).join('')}</ol>
+    <form class="quick quick-backlog" data-backlog="1">
+      <input type="text" data-quick="backlog" placeholder="добавить в бэклог…" enterkeyhint="done" aria-label="Добавить в бэклог">
+      <select id="backlog-project" aria-label="Проект">${options}</select>
+    </form>
+  </section></div>`;
+  view.querySelectorAll('.tasks').forEach((el) => makeSortable(el, 'backlog'));
+}
+
 /* ================= drag & drop ================= */
 
 function makeSortable(el, mode) {
@@ -308,9 +340,9 @@ function makeSortable(el, mode) {
 function onDrop(evt, mode) {
   const t = taskById(evt.item.dataset.id);
   if (!t) return;
-  const field = mode === 'day' ? 'dayOrder' : 'projOrder';
+  const field = { day: 'dayOrder', project: 'projOrder', backlog: 'backOrder' }[mode];
   if (mode === 'day') t.date = evt.to.dataset.date;
-  else t.projectId = evt.to.dataset.project;
+  else if (mode === 'project') t.projectId = evt.to.dataset.project;
   touch(t);
   for (const list of new Set([evt.from, evt.to])) {
     [...list.children].forEach((li, i) => {
@@ -371,6 +403,12 @@ view.addEventListener('submit', (e) => {
   const title = input.value.trim();
   if (!title) return;
   if (form.dataset.project) addTask({ title, projectId: form.dataset.project });
+  else if (form.dataset.backlog) {
+    const projectId = form.querySelector('select').value;
+    if (!projectId) { toast('Сначала создайте проект в настройках'); return; }
+    ui.defaultProject = projectId; saveUi();
+    addTask({ title, projectId, date: null });
+  }
   else {
     if (!ui.defaultProject) { toast('Сначала создайте проект в настройках'); return; }
     addTask({ title, projectId: ui.defaultProject, date: form.dataset.date });
@@ -405,7 +443,7 @@ function openEditor(task) {
   $('#f-project').innerHTML = projects().map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   $('#f-title').value = task ? task.title : '';
   $('#f-project').value = task ? task.projectId : (ui.defaultProject || '');
-  $('#f-date').value = task ? (task.date || '') : (ui.view === 'lists' ? '' : todayIso());
+  $('#f-date').value = task ? (task.date || '') : (ui.view === 'lists' || ui.view === 'backlog' ? '' : ui.view === 'day' ? ui.anchor : todayIso());
   $('#f-important').checked = task ? !!task.important : false;
   $('#f-note').value = task ? task.note || '' : '';
   const del = $('#f-delete');
@@ -436,6 +474,7 @@ $('#editor-form').addEventListener('submit', (e) => {
     note: $('#f-note').value.trim(),
   };
   if (editing) {
+    if (editing.date && !data.date) editing.backOrder = nextOrder('backOrder', (x) => !x.date && x !== editing);
     if (editing.date !== data.date) editing.dayOrder = nextOrder('dayOrder', (x) => x.date === data.date && x !== editing);
     if (editing.projectId !== data.projectId) editing.projOrder = nextOrder('projOrder', (x) => x.projectId === data.projectId && x !== editing);
     Object.assign(editing, data);

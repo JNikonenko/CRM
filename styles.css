@@ -215,6 +215,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .col .rank { flex: none; width: 20px; font: 11px/22px var(--f-mono); color: var(--ink-soft); text-align: right; }
 .col .quick input { padding-left: 28px; }
 
+/* ---------- backlog ---------- */
+.backlog-view { max-width: 760px; margin-inline: auto; }
+.backlog-hint { padding: 6px 0 4px; }
+.backlog-view .task { padding-left: 0; }
+.backlog-view .rank { flex: none; width: 20px; font: 11px/22px var(--f-mono); color: var(--ink-soft); text-align: right; }
+.quick-backlog { gap: 8px; align-items: center; border-bottom: 1px solid var(--rule); }
+.quick-backlog input { border-bottom: 0; padding-left: 28px; }
+.quick-backlog select { flex: none; max-width: 45%; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
+
 /* ---------- dialogs ---------- */
 dialog {
   border: 0; border-radius: 14px; padding: 0; width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
@@ -261,7 +270,7 @@ dialog h3 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-
   .top { gap: 8px; }
   .brand { font-size: 20px; }
   .tabs { order: 3; width: 100%; }
-  .tabs button { flex: 1; padding-inline: 4px; }
+  .tabs button { flex: 1; padding-inline: 2px; font-size: 14px; }
   #btn-settings { padding-inline: 8px; }
   .filters { margin-left: 0; }
   .period { font-size: 18px; }
