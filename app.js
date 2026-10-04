@@ -562,6 +562,7 @@ function openEditor(task, presetDate) {
   renderChecklist();
   const del = $('#f-delete');
   del.hidden = !task; del.classList.remove('armed'); del.textContent = 'Удалить';
+  $('#f-duplicate').hidden = !task;
   editor.showModal();
   if (!task) $('#f-title').focus();
 }
@@ -576,10 +577,10 @@ $('#f-title').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#editor-form').requestSubmit(); }
 });
 
-$('#editor-form').addEventListener('submit', (e) => {
-  e.preventDefault();
+// writes the editor form into the task (new or existing); returns it, or null if the title is empty
+function saveEditor() {
   const title = $('#f-title').value.trim();
-  if (!title) return;
+  if (!title) { $('#f-title').focus(); return null; }
   addDraftItem(); // a typed but not yet added item is kept too
   const data = {
     title,
@@ -597,11 +598,43 @@ $('#editor-form').addEventListener('submit', (e) => {
     delete editing.example;
     touch(editing);
     save();
-  } else {
-    addTask(data);
+    return editing;
   }
+  return addTask(data);
+}
+
+$('#editor-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!saveEditor()) return;
   editor.close();
   render();
+});
+
+// saves the open task, then makes a copy right below it and opens the copy
+$('#f-duplicate').addEventListener('click', () => {
+  const t = saveEditor();
+  if (!t) return;
+  const after = (v) => (Number.isFinite(v) ? v + 0.5 : v);
+  const copy = {
+    ...t,
+    id: uid(),
+    done: false,
+    checklist: (t.checklist || []).map((c) => ({ ...c, id: uid(), done: false })),
+    dayOrder: after(t.dayOrder),
+    projOrder: after(t.projOrder),
+    backOrder: after(t.backOrder),
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  delete copy.example;
+  delete copy.deleted;
+  state.tasks.push(copy);
+  save();
+  editor.close();
+  render();
+  openEditor(copy);
+  $('#editor-heading').textContent = 'Копия задачи';
+  toast('Копия создана: можно поменять дату или проект');
 });
 
 $('#f-delete').addEventListener('click', (e) => {
